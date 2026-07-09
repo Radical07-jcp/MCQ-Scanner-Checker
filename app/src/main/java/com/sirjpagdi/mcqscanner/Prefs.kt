@@ -5,22 +5,47 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Lightweight persistence layer using SharedPreferences + JSON.
- * Keeps things dependency-free and easy to inspect/debug.
+ * Persistence layer using SharedPreferences + JSON.
+ * Supports multiple named, savable/loadable tests (Save Test / Load Test),
+ * a theme preference, and per-test paper size.
  */
 object Prefs {
     private const val FILE = "mcq_scanner_prefs"
-
     private fun sp(ctx: Context) = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
-    // ---- Template (sheet layout) ----
-    data class Template(val numQuestions: Int, val choicesPerQuestion: Int, val columns: Int)
+    enum class PaperSize { FULL, HALF, QUARTER }
+    enum class AppTheme { LIGHT, DARK, BLACK }
 
+    data class Template(
+        val numQuestions: Int,
+        val choicesPerQuestion: Int,
+        val columns: Int,
+        val paperSize: PaperSize = PaperSize.FULL
+    )
+
+    data class Test(
+        val name: String,
+        val template: Template,
+        val answerKey: List<String>
+    )
+
+    // ---- Theme ----
+    fun saveTheme(ctx: Context, theme: AppTheme) {
+        sp(ctx).edit().putString("theme", theme.name).apply()
+    }
+
+    fun loadTheme(ctx: Context): AppTheme {
+        val raw = sp(ctx).getString("theme", AppTheme.LIGHT.name)
+        return try { AppTheme.valueOf(raw ?: AppTheme.LIGHT.name) } catch (e: Exception) { AppTheme.LIGHT }
+    }
+
+    // ---- Currently active (in-progress, unsaved) test being configured ----
     fun saveTemplate(ctx: Context, t: Template) {
         sp(ctx).edit()
             .putInt("t_questions", t.numQuestions)
             .putInt("t_choices", t.choicesPerQuestion)
             .putInt("t_columns", t.columns)
+            .putString("t_papersize", t.paperSize.name)
             .apply()
     }
 
@@ -28,15 +53,12 @@ object Prefs {
         val p = sp(ctx)
         val q = p.getInt("t_questions", -1)
         if (q <= 0) return null
-        return Template(
-            q,
-            p.getInt("t_choices", 4),
-            p.getInt("t_columns", 1)
-        )
+        val paper = try {
+            PaperSize.valueOf(p.getString("t_papersize", PaperSize.FULL.name) ?: PaperSize.FULL.name)
+        } catch (e: Exception) { PaperSize.FULL }
+        return Template(q, p.getInt("t_choices", 4), p.getInt("t_columns", 1), paper)
     }
 
-    // ---- Answer key ----
-    // Stored as JSON array of strings; "" means no correct answer / void question.
     fun saveAnswerKey(ctx: Context, answers: List<String>) {
         val arr = JSONArray()
         answers.forEach { arr.put(it) }
@@ -49,56 +71,53 @@ object Prefs {
         return (0 until arr.length()).map { arr.optString(it, "") }
     }
 
-    // ---- Results history ----
-    data class ResultRecord(
-        val studentName: String,
-        val score: Int,
-        val total: Int,
-        val detected: List<String>,
-        val correctKey: List<String>,
-        val timestamp: Long
-    )
+    fun activeTestName(ctx: Context): String = sp(ctx).getString("active_test_name", "") ?: ""
+    fun setActiveTestName(ctx: Context, name: String) {
+        sp(ctx).edit().putString("active_test_name", name).apply()
+    }
 
-    fun addResult(ctx: Context, r: ResultRecord) {
-        val history = loadHistoryRaw(ctx)
+    // ---- Saved tests library (named Save Test / Load Test) ----
+    private fun testsRaw(ctx: Context): JSONObject {
+        val raw = sp(ctx).getString("saved_tests", null) ?: return JSONObject()
+        return JSONObject(raw)
+    }
+
+    fun saveTest(ctx: Context, test: Test) {
+        val all = testsRaw(ctx)
         val obj = JSONObject()
-        obj.put("name", r.studentName)
-        obj.put("score", r.score)
-        obj.put("total", r.total)
-        obj.put("detected", JSONArray(r.detected))
-        obj.put("key", JSONArray(r.correctKey))
-        obj.put("ts", r.timestamp)
-        history.put(obj)
-        sp(ctx).edit().putString("history", history.toString()).apply()
+        obj.put("questions", test.template.numQuestions)
+        obj.put("choices", test.template.choicesPerQuestion)
+        obj.put("columns", test.template.columns)
+        obj.put("papersize", test.template.paperSize.name)
+        obj.put("key", JSONArray(test.answerKey))
+        all.put(test.name, obj)
+        sp(ctx).edit().putString("saved_tests", all.toString()).apply()
     }
 
-    private fun loadHistoryRaw(ctx: Context): JSONArray {
-        val raw = sp(ctx).getString("history", null) ?: return JSONArray()
-        return JSONArray(raw)
+    fun loadTest(ctx: Context, name: String): Test? {
+        val all = testsRaw(ctx)
+        if (!all.has(name)) return null
+        val o = all.getJSONObject(name)
+        val keyArr = o.getJSONArray("key")
+        val key = (0 until keyArr.length()).map { keyArr.optString(it, "") }
+        val paper = try {
+            PaperSize.valueOf(o.optString("papersize", PaperSize.FULL.name))
+        } catch (e: Exception) { PaperSize.FULL }
+        return Test(
+            name,
+            Template(o.getInt("questions"), o.getInt("choices"), o.getInt("columns"), paper),
+            key
+        )
     }
 
-    fun loadHistory(ctx: Context): List<ResultRecord> {
-        val arr = loadHistoryRaw(ctx)
-        val out = mutableListOf<ResultRecord>()
-        for (i in 0 until arr.length()) {
-            val o = arr.getJSONObject(i)
-            val detected = mutableListOf<String>()
-            val detArr = o.getJSONArray("detected")
-            for (j in 0 until detArr.length()) detected.add(detArr.getString(j))
-            val keyArr = o.getJSONArray("key")
-            val key = mutableListOf<String>()
-            for (j in 0 until keyArr.length()) key.add(keyArr.getString(j))
-            out.add(
-                ResultRecord(
-                    o.getString("name"),
-                    o.getInt("score"),
-                    o.getInt("total"),
-                    detected,
-                    key,
-                    o.getLong("ts")
-                )
-            )
-        }
-        return out
+    fun listTestNames(ctx: Context): List<String> {
+        val all = testsRaw(ctx)
+        return all.keys().asSequence().toList().sorted()
+    }
+
+    fun deleteTest(ctx: Context, name: String) {
+        val all = testsRaw(ctx)
+        all.remove(name)
+        sp(ctx).edit().putString("saved_tests", all.toString()).apply()
     }
 }

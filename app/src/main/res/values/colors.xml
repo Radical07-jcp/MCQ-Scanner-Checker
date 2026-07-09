@@ -1,8 +1,26 @@
 <resources>
-    <color name="chalkboard_green">#1F3A2C</color>
-    <color name="chalk_white">#F4F1E8</color>
-    <color name="chalk_yellow">#F2C94C</color>
-    <color name="chalk_red">#EB5757</color>
-    <color name="chalk_blue">#56CCF2</color>
-    <color name="surface_dark">#16281E</color>
+    <color name="tnhs_maroon">#7A0C2E</color>
+    <color name="tnhs_maroon_dark">#4E0719</color>
+    <color name="tnhs_gold">#F2B705</color>
+    <color name="tnhs_gold_light">#F7D680</color>
+
+    <!-- Light theme -->
+    <color name="light_bg">#FBF6EC</color>
+    <color name="light_surface">#FFFFFF</color>
+    <color name="light_text_primary">#241012</color>
+    <color name="light_text_muted">#6E5A5E</color>
+
+    <!-- Dark theme -->
+    <color name="dark_bg">#1E1416</color>
+    <color name="dark_surface">#2C2023</color>
+    <color name="dark_text_primary">#F5EDE7</color>
+    <color name="dark_text_muted">#C7B6B9</color>
+
+    <!-- Black (AMOLED) theme -->
+    <color name="black_bg">#000000</color>
+    <color name="black_surface">#161010</color>
+    <color name="black_text_primary">#FFFFFF</color>
+    <color name="black_text_muted">#B8ADAD</color>
+
+    <color name="success_green">#2FA84F</color>
 </resources>

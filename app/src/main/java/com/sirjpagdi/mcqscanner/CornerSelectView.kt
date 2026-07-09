@@ -32,8 +32,14 @@ class CornerSelectView @JvmOverloads constructor(
     private var imageRect = RectF()
 
     private val linePaint = Paint().apply {
-        color = Color.parseColor("#F2C94C")
-        strokeWidth = 5f
+        color = Color.parseColor("#F2B705")
+        strokeWidth = 6f
+        style = Paint.Style.STROKE
+        isAntiAlias = true
+    }
+    private val linePaintGood = Paint().apply {
+        color = Color.parseColor("#2FA84F")
+        strokeWidth = 7f
         style = Paint.Style.STROKE
         isAntiAlias = true
     }
@@ -43,6 +49,40 @@ class CornerSelectView @JvmOverloads constructor(
         isAntiAlias = true
     }
     private val handleRadius = 28f
+    private var onAlignmentChanged: ((Boolean) -> Unit)? = null
+    private var wasAligned = false
+
+    fun setOnAlignmentChangedListener(listener: (Boolean) -> Unit) {
+        onAlignmentChanged = listener
+    }
+
+    /** A rough "does this look like a properly aligned rectangle" check —
+     *  not a full CV analysis, just enough to give the teacher a visual nudge. */
+    private fun isWellAligned(): Boolean {
+        if (imageRect.isEmpty) return false
+        val area = quadArea()
+        val imgArea = imageRect.width() * imageRect.height()
+        if (imgArea <= 0f) return false
+        val coverage = area / imgArea
+        if (coverage < 0.35f) return false
+
+        // Diagonals should be reasonably similar in length for a fair, non-skewed rectangle.
+        val d1 = distance(corners[0], corners[2].x, corners[2].y)
+        val d2 = distance(corners[1], corners[3].x, corners[3].y)
+        val ratio = if (d2 == 0f) 0f else minOf(d1, d2) / maxOf(d1, d2)
+        return ratio > 0.75f
+    }
+
+    private fun quadArea(): Float {
+        // Shoelace formula
+        var sum = 0f
+        for (i in 0..3) {
+            val p1 = corners[i]
+            val p2 = corners[(i + 1) % 4]
+            sum += p1.x * p2.y - p2.x * p1.y
+        }
+        return kotlin.math.abs(sum) / 2f
+    }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -86,7 +126,13 @@ class CornerSelectView @JvmOverloads constructor(
         path.moveTo(corners[0].x, corners[0].y)
         for (i in 1..3) path.lineTo(corners[i].x, corners[i].y)
         path.close()
-        canvas.drawPath(path, linePaint)
+
+        val aligned = isWellAligned()
+        canvas.drawPath(path, if (aligned) linePaintGood else linePaint)
+        if (aligned != wasAligned) {
+            wasAligned = aligned
+            onAlignmentChanged?.invoke(aligned)
+        }
 
         corners.forEach { canvas.drawCircle(it.x, it.y, handleRadius, handlePaint) }
     }

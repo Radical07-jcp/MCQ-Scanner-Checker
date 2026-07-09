@@ -4,26 +4,28 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="@color/chalkboard_green">
+    android:background="?attr/appBackground">
 
     <TextView android:id="@+id/tvScore"
         android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="Score: --/--" android:textColor="@color/chalk_yellow" android:textSize="24sp" android:textStyle="bold"
+        android:text="Score: --/--" android:textColor="?attr/appAccent" android:textSize="26sp" android:textStyle="bold"
         android:gravity="center" android:layout_marginBottom="16dp"/>
 
     <EditText android:id="@+id/etStudentName" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:hint="Student name (optional)" android:textColorHint="#88F4F1E8" android:textColor="@color/chalk_white"
+        android:hint="Student name (optional)" android:textColorHint="?attr/appTextMuted" android:textColor="?attr/appTextPrimary"
         android:layout_marginBottom="12dp"/>
 
     <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
         <TextView android:id="@+id/tvDetail"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:textColor="@color/chalk_white" android:fontFamily="monospace" android:textSize="13sp"/>
+            android:textColor="?attr/appTextPrimary" android:fontFamily="monospace" android:textSize="13sp"/>
     </ScrollView>
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="12dp">
-        <Button android:id="@+id/btnSaveResult" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Save"/>
-        <Button android:id="@+id/btnExportCsv" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Export CSV"/>
-    </LinearLayout>
+    <Button android:id="@+id/btnExportCsv" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="12dp" android:text="Export CSV"/>
+
+    <Button android:id="@+id/btnScanAnother" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" android:text="Scan Next Sheet"
+        android:backgroundTint="?attr/appAccent" android:textColor="?attr/appAccentText"/>
 
 </LinearLayout>

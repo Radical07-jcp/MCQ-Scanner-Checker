@@ -1,0 +1,8 @@
+<resources>
+    <attr name="appBackground" format="color"/>
+    <attr name="appSurface" format="color"/>
+    <attr name="appTextPrimary" format="color"/>
+    <attr name="appTextMuted" format="color"/>
+    <attr name="appAccent" format="color"/>
+    <attr name="appAccentText" format="color"/>
+</resources>

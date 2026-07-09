@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +24,7 @@ class ScanActivity : AppCompatActivity() {
 
     private lateinit var previewView: PreviewView
     private var imageCapture: ImageCapture? = null
+    private var scanMode: String = "GRADE"
 
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -33,9 +36,11 @@ class ScanActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        ThemeManager.apply(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_scan)
         previewView = findViewById(R.id.previewView)
+        scanMode = intent.getStringExtra("mode") ?: "GRADE"
 
         findViewById<Button>(R.id.btnCapture).setOnClickListener { captureSheet() }
 
@@ -67,17 +72,26 @@ class ScanActivity : AppCompatActivity() {
 
     private fun captureSheet() {
         val capture = imageCapture ?: return
+        buzz()
         capture.takePicture(ContextCompat.getMainExecutor(this), object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
                 val bitmap = ImageUtils.imageProxyToBitmap(image)
                 image.close()
                 SheetImageHolder.capturedBitmap = bitmap
-                startActivity(Intent(this@ScanActivity, CornerSelectActivity::class.java))
+                startActivity(Intent(this@ScanActivity, CornerSelectActivity::class.java).putExtra("mode", scanMode))
+                finish()
             }
 
             override fun onError(exception: ImageCaptureException) {
                 Toast.makeText(this@ScanActivity, "Capture failed: ${exception.message}", Toast.LENGTH_LONG).show()
             }
         })
+    }
+
+    private fun buzz() {
+        val vibrator = getSystemService(Vibrator::class.java) ?: return
+        if (vibrator.hasVibrator()) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+        }
     }
 }

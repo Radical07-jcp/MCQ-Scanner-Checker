@@ -13,10 +13,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Scan-and-go by design: shows the score immediately, offers a CSV export
+ * of that one sheet, and a shortcut straight back into scanning the next
+ * sheet. Nothing is kept in the app between sheets.
+ */
 class ResultsActivity : AppCompatActivity() {
 
     companion object {
-        // Set by CornerSelectActivity right before launching this activity.
         var pendingDetected: List<String>? = null
     }
 
@@ -25,6 +29,7 @@ class ResultsActivity : AppCompatActivity() {
     private var score = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        ThemeManager.apply(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_results)
 
@@ -50,7 +55,7 @@ class ResultsActivity : AppCompatActivity() {
             if (isCorrect) score++
 
             val mark = when {
-                correct.isEmpty() -> "-"           // void question, not counted
+                correct.isEmpty() -> "-"
                 isCorrect -> "✓"
                 given.isEmpty() -> "✗ (blank)"
                 given == "?" -> "✗ (unclear mark)"
@@ -63,18 +68,14 @@ class ResultsActivity : AppCompatActivity() {
         tvScore.text = "Score: $score / $totalScored"
         tvDetail.text = sb.toString()
 
-        findViewById<Button>(R.id.btnSaveResult).setOnClickListener {
-            val name = findViewById<EditText>(R.id.etStudentName).text.toString().ifBlank { "Unnamed" }
-            Prefs.addResult(
-                this,
-                Prefs.ResultRecord(name, score, totalScored, detected, key, System.currentTimeMillis())
-            )
-            Toast.makeText(this, "Saved for $name", Toast.LENGTH_SHORT).show()
-        }
-
         findViewById<Button>(R.id.btnExportCsv).setOnClickListener {
             val name = findViewById<EditText>(R.id.etStudentName).text.toString().ifBlank { "Unnamed" }
             exportSingleCsv(name)
+        }
+
+        findViewById<Button>(R.id.btnScanAnother).setOnClickListener {
+            startActivity(Intent(this, ScanActivity::class.java).putExtra("mode", "GRADE"))
+            finish()
         }
     }
 
