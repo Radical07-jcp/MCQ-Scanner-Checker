@@ -1,0 +1,24 @@
+{
+  "name": "MCQ Scanner-Checker (Android)",
+  "image": "mcr.microsoft.com/devcontainers/java:17",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "17",
+      "installGradle": true
+    }
+  },
+  "onCreateCommand": "bash .devcontainer/setup-android-sdk.sh",
+  "postAttachCommand": "echo 'Run: ./gradlew assembleDebug  ->  APK will be in app/build/outputs/apk/debug/'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "redhat.java",
+        "fwcd.kotlin"
+      ]
+    }
+  },
+  "remoteEnv": {
+    "ANDROID_SDK_ROOT": "/opt/android-sdk"
+  }
+}

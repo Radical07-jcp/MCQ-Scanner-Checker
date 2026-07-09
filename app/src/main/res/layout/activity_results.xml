@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@color/chalkboard_green">
+
+    <TextView android:id="@+id/tvScore"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Score: --/--" android:textColor="@color/chalk_yellow" android:textSize="24sp" android:textStyle="bold"
+        android:gravity="center" android:layout_marginBottom="16dp"/>
+
+    <EditText android:id="@+id/etStudentName" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:hint="Student name (optional)" android:textColorHint="#88F4F1E8" android:textColor="@color/chalk_white"
+        android:layout_marginBottom="12dp"/>
+
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <TextView android:id="@+id/tvDetail"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="@color/chalk_white" android:fontFamily="monospace" android:textSize="13sp"/>
+    </ScrollView>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="12dp">
+        <Button android:id="@+id/btnSaveResult" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Save"/>
+        <Button android:id="@+id/btnExportCsv" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Export CSV"/>
+    </LinearLayout>
+
+</LinearLayout>

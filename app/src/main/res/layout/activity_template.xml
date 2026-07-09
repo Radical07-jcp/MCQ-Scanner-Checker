@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@color/chalkboard_green">
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="Answer Sheet Template" android:textColor="@color/chalk_white" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="16dp"/>
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="Number of Questions" android:textColor="@color/chalk_white"/>
+    <EditText android:id="@+id/etQuestions" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:inputType="number" android:hint="e.g. 50" android:textColorHint="#88F4F1E8" android:textColor="@color/chalk_white"/>
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="Choices per question" android:textColor="@color/chalk_white" android:layout_marginTop="12dp"/>
+    <EditText android:id="@+id/etChoices" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:inputType="number" android:hint="e.g. 4 (A-D)" android:textColorHint="#88F4F1E8" android:textColor="@color/chalk_white"/>
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="Columns of questions on the sheet" android:textColor="@color/chalk_white" android:layout_marginTop="12dp"/>
+    <EditText android:id="@+id/etColumns" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:inputType="number" android:hint="e.g. 2 (questions split into 2 blocks)" android:textColorHint="#88F4F1E8" android:textColor="@color/chalk_white"/>
+
+    <Button android:id="@+id/btnSaveTemplate" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="24dp" android:text="Save Template"/>
+
+</LinearLayout>

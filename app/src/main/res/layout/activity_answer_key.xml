@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@color/chalkboard_green">
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="Answer Key" android:textColor="@color/chalk_white" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="8dp"/>
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="Enter answers in order, comma separated. Use A, B, C, D, E.\nExample: A,C,B,D,A,...\nLeave a slot blank for no-answer/void, e.g. A,,C" 
+        android:textColor="@color/chalk_yellow" android:textSize="12sp" android:layout_marginBottom="12dp"/>
+
+    <EditText android:id="@+id/etAnswers" android:layout_width="match_parent" android:layout_height="160dp"
+        android:gravity="top" android:inputType="textMultiLine|textCapCharacters"
+        android:background="#22FFFFFF" android:textColor="@color/chalk_white" android:padding="8dp"/>
+
+    <Button android:id="@+id/btnSaveKey" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="20dp" android:text="Save Answer Key"/>
+
+</LinearLayout>
