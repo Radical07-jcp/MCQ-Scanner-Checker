@@ -22,5 +22,7 @@
     <color name="black_text_primary">#FFFFFF</color>
     <color name="black_text_muted">#B8ADAD</color>
 
+    <color name="chalkboard_green">#2FA84F</color>
+    <color name="chalk_white">#FFFFFFFF</color>
     <color name="success_green">#2FA84F</color>
 </resources>

@@ -29,6 +29,13 @@ object Prefs {
         val answerKey: List<String>
     )
 
+    data class ResultRecord(
+        val studentName: String,
+        val score: Int,
+        val total: Int,
+        val timestamp: Long
+    )
+
     // ---- Theme ----
     fun saveTheme(ctx: Context, theme: AppTheme) {
         sp(ctx).edit().putString("theme", theme.name).apply()
@@ -119,5 +126,31 @@ object Prefs {
         val all = testsRaw(ctx)
         all.remove(name)
         sp(ctx).edit().putString("saved_tests", all.toString()).apply()
+    }
+
+    fun saveHistory(ctx: Context, record: ResultRecord) {
+        val raw = sp(ctx).getString("history_records", null)
+        val arr = if (raw == null) JSONArray() else JSONArray(raw)
+        val obj = JSONObject()
+        obj.put("studentName", record.studentName)
+        obj.put("score", record.score)
+        obj.put("total", record.total)
+        obj.put("timestamp", record.timestamp)
+        arr.put(obj)
+        sp(ctx).edit().putString("history_records", arr.toString()).apply()
+    }
+
+    fun loadHistory(ctx: Context): List<ResultRecord> {
+        val raw = sp(ctx).getString("history_records", null) ?: return emptyList()
+        val arr = JSONArray(raw)
+        return (0 until arr.length()).map { idx ->
+            val o = arr.optJSONObject(idx) ?: JSONObject()
+            ResultRecord(
+                o.optString("studentName", "Unnamed"),
+                o.optInt("score", 0),
+                o.optInt("total", 0),
+                o.optLong("timestamp", 0L)
+            )
+        }
     }
 }
