@@ -27,6 +27,13 @@ import kotlin.math.min
  */
 object OMRProcessor {
 
+    init {
+        try {
+            System.loadLibrary("opencv_java4")
+        } catch (_: UnsatisfiedLinkError) {
+        }
+    }
+
     private const val WARPED_WIDTH = 1000
     private const val WARPED_HEIGHT = 1400
 

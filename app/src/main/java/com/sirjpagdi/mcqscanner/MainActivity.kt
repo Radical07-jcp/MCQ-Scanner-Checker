@@ -60,8 +60,9 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnGeneratePdf).setOnClickListener {
             val t = buildTemplateOrToast() ?: return@setOnClickListener
-            val bitmap = TemplateRenderer.render(t)
-            PdfGenerator.generateAndShare(this, bitmap, etTestName.text.toString().ifBlank { "MCQ_Template" })
+            val title = etTestName.text.toString().ifBlank { "MCQ Template" }
+            val bitmap = TemplateRenderer.render(t, title)
+            PdfGenerator.generateAndShare(this, bitmap, title)
         }
 
         findViewById<Button>(R.id.btnSaveTest).setOnClickListener {

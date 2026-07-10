@@ -31,13 +31,12 @@ object TemplateRenderer {
         return bitmap
     }
 
-    private fun renderContent(canvas: Canvas, WIDTH: Int, HEIGHT: Int, template: Prefs.Template, schoolName: String) {
+    private fun renderContent(canvas: Canvas, WIDTH: Int, HEIGHT: Int, template: Prefs.Template, sheetTitle: String) {
 
-        val maroon = Color.parseColor("#7A0C2E")
         val black = Color.BLACK
 
         val titlePaint = Paint().apply {
-            color = maroon
+            color = black
             textSize = 34f
             typeface = Typeface.DEFAULT_BOLD
             isAntiAlias = true
@@ -54,6 +53,10 @@ object TemplateRenderer {
             textSize = 18f
             isAntiAlias = true
         }
+        val columnLabelPaint = Paint(labelPaint).apply {
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+        }
         val bubblePaint = Paint().apply {
             color = black
             style = Paint.Style.STROKE
@@ -61,7 +64,7 @@ object TemplateRenderer {
             isAntiAlias = true
         }
         val cornerPaint = Paint().apply {
-            color = maroon
+            color = black
             style = Paint.Style.FILL
         }
 
@@ -72,12 +75,9 @@ object TemplateRenderer {
         canvas.drawRect(20f, HEIGHT - 20f - markerSize, 20f + markerSize, HEIGHT - 20f, cornerPaint)
         canvas.drawRect(WIDTH - 20f - markerSize, HEIGHT - 20f - markerSize, WIDTH - 20f, HEIGHT - 20f, cornerPaint)
 
+        val title = sheetTitle.ifBlank { "Answer Sheet" }
         var y = 90f
-        canvas.drawText(schoolName, WIDTH / 2f, y, titlePaint)
-        y += 40f
-        canvas.drawText("Multiple Choice Answer Sheet", WIDTH / 2f, y, subPaint.apply { textAlign = Paint.Align.CENTER })
-        subPaint.textAlign = Paint.Align.LEFT
-
+        canvas.drawText(title, WIDTH / 2f, y, titlePaint)
         y += 50f
         canvas.drawText("Name: ______________________________", 60f, y, subPaint)
         canvas.drawText("Date: ____________", WIDTH - 320f, y, subPaint)
@@ -93,21 +93,28 @@ object TemplateRenderer {
         val rowHeight = (gridBottom - gridTop) / rowsPerCol
         val bubbleRadius = minOf(rowHeight * 0.28f, 16f)
 
+        for (col in 0 until template.columns) {
+            val bubblesStartX = 50f + col * colWidth + 48f
+            val bubbleSpacing = (colWidth - 60f) / template.choicesPerQuestion
+            for (c in 0 until template.choicesPerQuestion) {
+                val cx = bubblesStartX + c * bubbleSpacing + bubbleSpacing / 2f
+                canvas.drawText(('A' + c).toString(), cx, gridTop - 12f, columnLabelPaint)
+            }
+        }
+
         for (q in 0 until template.numQuestions) {
             val col = q / rowsPerCol
             val rowInCol = q % rowsPerCol
             val rowY = gridTop + rowInCol * rowHeight + rowHeight / 2f
             val colLeft = 50f + col * colWidth
 
-            canvas.drawText("${q + 1}.".padStart(3), colLeft, rowY + 6f, labelPaint)
+            canvas.drawText("${q + 1}.", colLeft, rowY + 6f, labelPaint)
 
             val bubblesStartX = colLeft + 48f
             val bubbleSpacing = (colWidth - 60f) / template.choicesPerQuestion
             for (c in 0 until template.choicesPerQuestion) {
                 val cx = bubblesStartX + c * bubbleSpacing + bubbleSpacing / 2f
                 canvas.drawCircle(cx, rowY, bubbleRadius, bubblePaint)
-                val letterPaint = Paint(labelPaint).apply { textAlign = Paint.Align.CENTER; textSize = 14f }
-                canvas.drawText(('A' + c).toString(), cx, rowY + bubbleRadius + 22f, letterPaint)
             }
         }
     }
