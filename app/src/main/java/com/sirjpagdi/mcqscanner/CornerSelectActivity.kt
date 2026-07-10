@@ -51,12 +51,7 @@ class CornerSelectActivity : AppCompatActivity() {
 
             val template = Prefs.loadTemplate(this)!!
             val warped = OMRProcessor.warpPerspective(bitmap, corners)
-            val detected = OMRProcessor.grade(
-                warped,
-                template.numQuestions,
-                template.columns,
-                template.choicesPerQuestion
-            )
+            val detected = OMRProcessor.grade(warped, template)
 
             if (scanMode == "KEY") {
                 Prefs.saveAnswerKey(this, detected)

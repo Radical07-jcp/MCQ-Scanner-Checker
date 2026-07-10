@@ -15,7 +15,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etTestName: EditText
     private lateinit var etQuestions: EditText
     private lateinit var rgChoices: RadioGroup
-    private lateinit var rgPaperSize: RadioGroup
     private lateinit var tvKeyStatus: TextView
     private lateinit var tvVersion: TextView
     private lateinit var btnThemeToggle: TextView
@@ -37,7 +36,6 @@ class MainActivity : AppCompatActivity() {
         etTestName = findViewById(R.id.etTestName)
         etQuestions = findViewById(R.id.etQuestions)
         rgChoices = findViewById(R.id.rgChoices)
-        rgPaperSize = findViewById(R.id.rgPaperSize)
         tvKeyStatus = findViewById(R.id.tvKeyStatus)
         tvVersion = findViewById(R.id.tvVersion)
         btnThemeToggle = findViewById(R.id.btnThemeToggle)
@@ -60,9 +58,13 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnGeneratePdf).setOnClickListener {
             val t = buildTemplateOrToast() ?: return@setOnClickListener
-            val title = etTestName.text.toString().ifBlank { "MCQ Template" }
-            val bitmap = TemplateRenderer.render(t, title)
-            PdfGenerator.generateAndShare(this, bitmap, title)
+            val title = etTestName.text.toString().trim()
+            if (title.isEmpty()) {
+                Toast.makeText(this, "Give the test a name first — it's used as the sheet title", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            Prefs.saveTemplate(this, t)
+            startActivity(Intent(this, PreviewTemplateActivity::class.java).putExtra("title", title))
         }
 
         findViewById<Button>(R.id.btnSaveTest).setOnClickListener {
@@ -114,13 +116,6 @@ class MainActivity : AppCompatActivity() {
         if (t != null) {
             etQuestions.setText(t.numQuestions.toString())
             rgChoices.check(if (t.choicesPerQuestion >= 5) R.id.rbAE else R.id.rbAD)
-            rgPaperSize.check(
-                when (t.paperSize) {
-                    Prefs.PaperSize.FULL -> R.id.rbFull
-                    Prefs.PaperSize.HALF -> R.id.rbHalf
-                    Prefs.PaperSize.QUARTER -> R.id.rbQuarter
-                }
-            )
         }
         updateKeyStatus()
     }
@@ -129,13 +124,6 @@ class MainActivity : AppCompatActivity() {
         etTestName.setText(test.name)
         etQuestions.setText(test.template.numQuestions.toString())
         rgChoices.check(if (test.template.choicesPerQuestion >= 5) R.id.rbAE else R.id.rbAD)
-        rgPaperSize.check(
-            when (test.template.paperSize) {
-                Prefs.PaperSize.FULL -> R.id.rbFull
-                Prefs.PaperSize.HALF -> R.id.rbHalf
-                Prefs.PaperSize.QUARTER -> R.id.rbQuarter
-            }
-        )
         Prefs.saveTemplate(this, test.template)
         Prefs.saveAnswerKey(this, test.answerKey)
         Prefs.setActiveTestName(this, test.name)
@@ -160,13 +148,8 @@ class MainActivity : AppCompatActivity() {
             return null
         }
         val choices = if (rgChoices.checkedRadioButtonId == R.id.rbAE) 5 else 4
-        val paperSize = when (rgPaperSize.checkedRadioButtonId) {
-            R.id.rbHalf -> Prefs.PaperSize.HALF
-            R.id.rbQuarter -> Prefs.PaperSize.QUARTER
-            else -> Prefs.PaperSize.FULL
-        }
         // Single-column layout to match the current design; ask if you'd like
         // a multi-column option back for long tests.
-        return Prefs.Template(q, choices, columns = 1, paperSize = paperSize)
+        return Prefs.Template(q, choices, columns = 1)
     }
 }

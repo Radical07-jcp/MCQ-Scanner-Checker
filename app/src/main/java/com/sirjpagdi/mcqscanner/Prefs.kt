@@ -13,14 +13,12 @@ object Prefs {
     private const val FILE = "mcq_scanner_prefs"
     private fun sp(ctx: Context) = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
-    enum class PaperSize { FULL, HALF, QUARTER }
     enum class AppTheme { LIGHT, DARK, BLACK }
 
     data class Template(
         val numQuestions: Int,
         val choicesPerQuestion: Int,
-        val columns: Int,
-        val paperSize: PaperSize = PaperSize.FULL
+        val columns: Int
     )
 
     data class Test(
@@ -52,7 +50,6 @@ object Prefs {
             .putInt("t_questions", t.numQuestions)
             .putInt("t_choices", t.choicesPerQuestion)
             .putInt("t_columns", t.columns)
-            .putString("t_papersize", t.paperSize.name)
             .apply()
     }
 
@@ -60,10 +57,7 @@ object Prefs {
         val p = sp(ctx)
         val q = p.getInt("t_questions", -1)
         if (q <= 0) return null
-        val paper = try {
-            PaperSize.valueOf(p.getString("t_papersize", PaperSize.FULL.name) ?: PaperSize.FULL.name)
-        } catch (e: Exception) { PaperSize.FULL }
-        return Template(q, p.getInt("t_choices", 4), p.getInt("t_columns", 1), paper)
+        return Template(q, p.getInt("t_choices", 4), p.getInt("t_columns", 1))
     }
 
     fun saveAnswerKey(ctx: Context, answers: List<String>) {
@@ -95,7 +89,6 @@ object Prefs {
         obj.put("questions", test.template.numQuestions)
         obj.put("choices", test.template.choicesPerQuestion)
         obj.put("columns", test.template.columns)
-        obj.put("papersize", test.template.paperSize.name)
         obj.put("key", JSONArray(test.answerKey))
         all.put(test.name, obj)
         sp(ctx).edit().putString("saved_tests", all.toString()).apply()
@@ -107,12 +100,9 @@ object Prefs {
         val o = all.getJSONObject(name)
         val keyArr = o.getJSONArray("key")
         val key = (0 until keyArr.length()).map { keyArr.optString(it, "") }
-        val paper = try {
-            PaperSize.valueOf(o.optString("papersize", PaperSize.FULL.name))
-        } catch (e: Exception) { PaperSize.FULL }
         return Test(
             name,
-            Template(o.getInt("questions"), o.getInt("choices"), o.getInt("columns"), paper),
+            Template(o.getInt("questions"), o.getInt("choices"), o.getInt("columns")),
             key
         )
     }

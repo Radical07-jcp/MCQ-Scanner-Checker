@@ -94,32 +94,6 @@
                     android:text="A–E" android:textColor="?attr/appTextPrimary"/>
             </RadioGroup>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Paper size per test"
-                android:textColor="?attr/appTextMuted"
-                android:textSize="12sp"
-                android:layout_marginBottom="6dp"/>
-
-            <RadioGroup android:id="@+id/rgPaperSize"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="20dp">
-                <RadioButton android:id="@+id/rbFull"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="Full page" android:textColor="?attr/appTextPrimary" android:checked="true"/>
-                <RadioButton android:id="@+id/rbHalf"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:layout_marginStart="20dp"
-                    android:text="½ page" android:textColor="?attr/appTextPrimary"/>
-                <RadioButton android:id="@+id/rbQuarter"
-                    android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:layout_marginStart="20dp"
-                    android:text="¼ page" android:textColor="?attr/appTextPrimary"/>
-            </RadioGroup>
-
             <TextView android:id="@+id/tvKeyStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -176,7 +150,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:text="v0.9"
+                android:text="v0.3"
                 android:textColor="?attr/appTextMuted"
                 android:textSize="13sp"
                 android:padding="6dp"/>

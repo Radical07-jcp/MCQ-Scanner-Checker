@@ -2,14 +2,29 @@
 
 All notable changes to MCQ Scan & Check are logged here (also viewable in-app: tap the version number on the home screen).
 
-## v0.9 — Development build (current)
+## v0.3 — Development build (current)
+
+- Answer sheet and grading now share one geometry source (`SheetGeometry.kt`), fixing the main cause of inaccurate scans — bubble positions no longer drift out of sync between what's printed and what's read back
+- Fixed a crash on capture caused by OpenCV's native library being loaded from multiple places at once (`no implementation found for ... Mat.n_Mat()`)
+- Removed the manual drag-to-align step — scanning goes straight from capture to grading
+- New corner-square guide: 4 brackets you align the sheet's printed corners into, turning green per corner as they lock in
+- Removed paper size options (Full/Half/Quarter) — one consistent layout now
+- Answer sheet: actual test title instead of "MCQ Template", student info now in a bordered table instead of underscores
+- Preview screen before generating/sharing the answer sheet PDF
+- Removed Export CSV from the results screen
+
+## v0.2 — OpenCV live-scan pass
+
+- Attempted live camera contour detection for sheet alignment
+- Reintroduced saved-results history (not yet reachable from the home screen)
+
+## v0.1 — TNHS branding & redesign
 
 - Redesigned setup screen: test name, question count, choice range, and paper size all on one screen
 - Save Test / Load Test — keep multiple named tests and reload them anytime
 - Scan Answer Key Instead — bubble the key on a printed sheet and scan it in, instead of tapping it by hand
 - Generate & Share PDF — export a printable, pre-formatted answer sheet straight from your settings
 - Light, Dark, and Black themes — tap the icon top-right of the home screen to cycle
-- Corner-alignment guide while scanning, turns green when properly aligned, with haptic feedback
 - Real Tarlac National High School logo and school facade watermark
 - In-app changelog (this page, opened from the version number — no browser needed)
 
@@ -21,6 +36,7 @@ All notable changes to MCQ Scan & Check are logged here (also viewable in-app: t
 
 ## Planned
 
-- Live-camera alignment overlay during capture (current guide is on the post-capture corner-drag screen)
+- Refine corner-bracket size/position once a sample scanning video is available
 - Multi-column question layout option for long tests
 - Batch scanning without returning to the home screen each time
+- Decide whether to finish wiring up History, or remove it for good

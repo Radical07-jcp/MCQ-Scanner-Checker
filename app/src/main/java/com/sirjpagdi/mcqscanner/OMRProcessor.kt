@@ -15,32 +15,24 @@ import kotlin.math.min
 /**
  * Core OMR grading logic.
  *
- * Approach (adapted from OMRChecker's philosophy, simplified for on-device use):
- *  1. Perspective-warp the photographed sheet to a flat rectangle using the 4 corners
- *     the teacher marked.
- *  2. Convert to grayscale and apply Otsu thresholding to separate pencil/pen marks
- *     from paper.
- *  3. Slice the sheet into a grid of question-rows x choice-columns (per template),
- *     one cell per bubble.
- *  4. For each question, the "darkest" cell (highest ratio of dark pixels) above a
- *     minimum-fill threshold is the marked answer. Ties / no dark-enough cell => blank.
+ *  1. Perspective-warp the photographed sheet to a flat rectangle.
+ *  2. Convert to grayscale and apply Otsu thresholding to separate pencil/pen
+ *     marks from paper.
+ *  3. Sample each bubble position using SheetGeometry — the same geometry
+ *     TemplateRenderer used to draw the sheet in the first place, so the
+ *     sampling regions always match where the bubbles actually are.
+ *  4. For each question, the "darkest" cell (highest ratio of dark pixels)
+ *     above a minimum-fill threshold is the marked answer.
  */
 object OMRProcessor {
 
-    init {
-        try {
-            System.loadLibrary("opencv_java4")
-        } catch (_: UnsatisfiedLinkError) {
-        }
-    }
-
-    private const val WARPED_WIDTH = 1000
-    private const val WARPED_HEIGHT = 1400
+    private const val WARPED_WIDTH = 1240
+    private const val WARPED_HEIGHT = 1754
 
     // Fraction of a cell that must be dark for it to count as "marked" at all.
-    private const val FILL_THRESHOLD = 0.35
+    private const val FILL_THRESHOLD = 0.32
     // Minimum lead the darkest cell needs over the second-darkest to count as unambiguous.
-    private const val AMBIGUITY_MARGIN = 0.08
+    private const val AMBIGUITY_MARGIN = 0.07
 
     fun warpPerspective(src: Bitmap, corners: Array<PointF>): Bitmap {
         val srcMat = Mat()
@@ -70,18 +62,7 @@ object OMRProcessor {
         return outBitmap
     }
 
-    /**
-     * Grades a warped (already perspective-corrected) sheet bitmap.
-     * @param totalQuestions total number of questions on the sheet
-     * @param columns how many side-by-side question blocks the sheet has
-     * @param choices number of bubble choices per question (e.g. 4 for A-D)
-     */
-    fun grade(
-        warped: Bitmap,
-        totalQuestions: Int,
-        columns: Int,
-        choices: Int
-    ): List<String> {
+    fun grade(warped: Bitmap, template: Prefs.Template): List<String> {
         val mat = Mat()
         Utils.bitmapToMat(warped, mat)
         val gray = Mat()
@@ -91,32 +72,30 @@ object OMRProcessor {
         val thresh = Mat()
         Imgproc.threshold(gray, thresh, 0.0, 255.0, Imgproc.THRESH_BINARY_INV + Imgproc.THRESH_OTSU)
 
-        val questionsPerColumn = totalQuestions / columns
-        val colWidth = WARPED_WIDTH / columns
-        // Leave small margins so we don't sample question-number labels at the cell edge.
-        val rowHeight = WARPED_HEIGHT.toDouble() / questionsPerColumn
-        val cellWidth = colWidth.toDouble() / choices
+        val width = WARPED_WIDTH.toFloat()
+        val height = WARPED_HEIGHT.toFloat()
+        val geometry = SheetGeometry.compute(template, width, height)
+        val bubbleSpacing = SheetGeometry.bubbleSpacing(geometry, template.choicesPerQuestion, width)
+        // Sample window is a fraction of the bubble's own footprint, centered on it,
+        // so we're reading the bubble itself rather than the gap between bubbles.
+        val sampleHalfW = min(bubbleSpacing * 0.32f, geometry.bubbleRadius * 1.15f)
+        val sampleHalfH = min(geometry.rowHeight * 0.32f, geometry.bubbleRadius * 1.15f)
 
         val answers = mutableListOf<String>()
 
-        for (q in 0 until totalQuestions) {
-            val col = q / questionsPerColumn
-            val rowInCol = q % questionsPerColumn
+        for (q in 0 until template.numQuestions) {
+            val col = q / geometry.rowsPerCol
+            val rowInCol = q % geometry.rowsPerCol
+            val rowY = SheetGeometry.rowCenterY(geometry, rowInCol)
 
-            val fillRatios = DoubleArray(choices)
-            for (c in 0 until choices) {
-                val x0 = (col * colWidth + c * cellWidth).toInt()
-                val x1 = (col * colWidth + (c + 1) * cellWidth).toInt()
-                val y0 = (rowInCol * rowHeight).toInt()
-                val y1 = ((rowInCol + 1) * rowHeight).toInt()
+            val fillRatios = DoubleArray(template.choicesPerQuestion)
+            for (c in 0 until template.choicesPerQuestion) {
+                val cx = SheetGeometry.bubbleCenterX(geometry, col, c, template.choicesPerQuestion, width)
 
-                // Shrink the sampling window slightly to avoid grid-line bleed.
-                val padX = ((x1 - x0) * 0.15).toInt()
-                val padY = ((y1 - y0) * 0.15).toInt()
-                val rx0 = max(x0 + padX, 0)
-                val rx1 = min(x1 - padX, WARPED_WIDTH)
-                val ry0 = max(y0 + padY, 0)
-                val ry1 = min(y1 - padY, WARPED_HEIGHT)
+                val rx0 = max((cx - sampleHalfW).toInt(), 0)
+                val rx1 = min((cx + sampleHalfW).toInt(), WARPED_WIDTH)
+                val ry0 = max((rowY - sampleHalfH).toInt(), 0)
+                val ry1 = min((rowY + sampleHalfH).toInt(), WARPED_HEIGHT)
                 if (rx1 <= rx0 || ry1 <= ry0) { fillRatios[c] = 0.0; continue }
 
                 val roi = thresh.submat(ry0, ry1, rx0, rx1)

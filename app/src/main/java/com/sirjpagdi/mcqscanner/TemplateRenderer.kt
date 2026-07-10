@@ -8,49 +8,41 @@ import android.graphics.Typeface
 
 /**
  * Renders a printable blank answer sheet bitmap from a saved Template.
- * Students bubble this exact layout in; corner markers at each edge
- * make it easy to align during scanning.
+ * Bubble positions come from SheetGeometry — the exact same geometry
+ * OMRProcessor uses to grade a photographed copy of this sheet, so what
+ * gets drawn here is guaranteed to match what gets read back later.
  */
 object TemplateRenderer {
 
     private const val WIDTH = 1240   // ~A4 at 150dpi
     private const val HEIGHT = 1754
 
-    fun render(template: Prefs.Template, schoolName: String = "Tarlac National High School"): Bitmap {
-        val scale = when (template.paperSize) {
-            Prefs.PaperSize.FULL -> 1.0
-            Prefs.PaperSize.HALF -> 0.72
-            Prefs.PaperSize.QUARTER -> 0.5
-        }
-        val width = (WIDTH * scale).toInt()
-        val height = (HEIGHT * scale).toInt()
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    fun render(template: Prefs.Template, sheetTitle: String): Bitmap {
+        val bitmap = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
-        renderContent(canvas, width, height, template, schoolName)
+        renderContent(canvas, WIDTH.toFloat(), HEIGHT.toFloat(), template, sheetTitle)
         return bitmap
     }
 
-    private fun renderContent(canvas: Canvas, WIDTH: Int, HEIGHT: Int, template: Prefs.Template, sheetTitle: String) {
-
+    private fun renderContent(canvas: Canvas, width: Float, height: Float, template: Prefs.Template, sheetTitle: String) {
         val black = Color.BLACK
 
         val titlePaint = Paint().apply {
             color = black
-            textSize = 34f
+            textSize = width * 0.028f
             typeface = Typeface.DEFAULT_BOLD
             isAntiAlias = true
             textAlign = Paint.Align.CENTER
         }
-        val subPaint = Paint().apply {
+        val tableLabelPaint = Paint().apply {
             color = black
-            textSize = 20f
+            textSize = width * 0.014f
             isAntiAlias = true
-            textAlign = Paint.Align.LEFT
         }
         val labelPaint = Paint().apply {
             color = black
-            textSize = 18f
+            textSize = width * 0.0145f
             isAntiAlias = true
         }
         val columnLabelPaint = Paint(labelPaint).apply {
@@ -60,7 +52,13 @@ object TemplateRenderer {
         val bubblePaint = Paint().apply {
             color = black
             style = Paint.Style.STROKE
-            strokeWidth = 2.5f
+            strokeWidth = width * 0.002f
+            isAntiAlias = true
+        }
+        val tableBorderPaint = Paint().apply {
+            color = black
+            style = Paint.Style.STROKE
+            strokeWidth = width * 0.0016f
             isAntiAlias = true
         }
         val cornerPaint = Paint().apply {
@@ -68,53 +66,60 @@ object TemplateRenderer {
             style = Paint.Style.FILL
         }
 
-        // Corner alignment markers (match what the app looks for when scanning)
-        val markerSize = 30f
-        canvas.drawRect(20f, 20f, 20f + markerSize, 20f + markerSize, cornerPaint)
-        canvas.drawRect(WIDTH - 20f - markerSize, 20f, WIDTH - 20f, 20f + markerSize, cornerPaint)
-        canvas.drawRect(20f, HEIGHT - 20f - markerSize, 20f + markerSize, HEIGHT - 20f, cornerPaint)
-        canvas.drawRect(WIDTH - 20f - markerSize, HEIGHT - 20f - markerSize, WIDTH - 20f, HEIGHT - 20f, cornerPaint)
+        // Corner alignment markers — the live scanning screen looks for these
+        // same 4 black squares to know the sheet is properly framed.
+        val markerSize = width * SheetGeometry.CORNER_MARKER_SIZE
+        val inset = width * SheetGeometry.CORNER_MARKER_INSET
+        canvas.drawRect(inset, inset, inset + markerSize, inset + markerSize, cornerPaint)
+        canvas.drawRect(width - inset - markerSize, inset, width - inset, inset + markerSize, cornerPaint)
+        canvas.drawRect(inset, height - inset - markerSize, inset + markerSize, height - inset, cornerPaint)
+        canvas.drawRect(width - inset - markerSize, height - inset - markerSize, width - inset, height - inset, cornerPaint)
 
-        val title = sheetTitle.ifBlank { "Answer Sheet" }
-        var y = 90f
-        canvas.drawText(title, WIDTH / 2f, y, titlePaint)
-        y += 50f
-        canvas.drawText("Name: ______________________________", 60f, y, subPaint)
-        canvas.drawText("Date: ____________", WIDTH - 320f, y, subPaint)
-        y += 30f
-        canvas.drawText("Section: ___________________________", 60f, y, subPaint)
-        canvas.drawText("Score: ____________", WIDTH - 320f, y, subPaint)
-        y += 40f
+        val title = sheetTitle.ifBlank { "Untitled Test" }
+        val titleY = height * SheetGeometry.TITLE_BAND * 0.6f
+        canvas.drawText(title, width / 2f, titleY, titlePaint)
 
-        val gridTop = y
-        val gridBottom = HEIGHT - 80f
-        val colWidth = (WIDTH - 100f) / template.columns
-        val rowsPerCol = template.numQuestions / template.columns
-        val rowHeight = (gridBottom - gridTop) / rowsPerCol
-        val bubbleRadius = minOf(rowHeight * 0.28f, 16f)
+        // Bordered student-info table instead of underscore blanks.
+        val tableTop = height * SheetGeometry.TITLE_BAND
+        val tableBottom = height * (SheetGeometry.TITLE_BAND + SheetGeometry.INFO_TABLE_BAND)
+        val tableLeft = width * SheetGeometry.MARGIN_X
+        val tableRight = width - tableLeft
+        val tableMidY = tableTop + (tableBottom - tableTop) / 2f
+        val tableMidX = tableLeft + (tableRight - tableLeft) * 0.62f
 
+        canvas.drawRect(tableLeft, tableTop, tableRight, tableBottom, tableBorderPaint)
+        canvas.drawLine(tableLeft, tableMidY, tableRight, tableMidY, tableBorderPaint)
+        canvas.drawLine(tableMidX, tableTop, tableMidX, tableBottom, tableBorderPaint)
+
+        val cellPad = width * 0.012f
+        val cellTextY1 = tableTop + (tableMidY - tableTop) / 2f + tableLabelPaint.textSize * 0.35f
+        val cellTextY2 = tableMidY + (tableBottom - tableMidY) / 2f + tableLabelPaint.textSize * 0.35f
+        canvas.drawText("Name:", tableLeft + cellPad, cellTextY1, tableLabelPaint)
+        canvas.drawText("Section:", tableLeft + cellPad, cellTextY2, tableLabelPaint)
+        canvas.drawText("Date:", tableMidX + cellPad, cellTextY1, tableLabelPaint)
+        canvas.drawText("Score:", tableMidX + cellPad, cellTextY2, tableLabelPaint)
+
+        val geometry = SheetGeometry.compute(template, width, height)
+
+        // Column headers: one "A  B  C  D" row per column block.
         for (col in 0 until template.columns) {
-            val bubblesStartX = 50f + col * colWidth + 48f
-            val bubbleSpacing = (colWidth - 60f) / template.choicesPerQuestion
             for (c in 0 until template.choicesPerQuestion) {
-                val cx = bubblesStartX + c * bubbleSpacing + bubbleSpacing / 2f
-                canvas.drawText(('A' + c).toString(), cx, gridTop - 12f, columnLabelPaint)
+                val cx = SheetGeometry.bubbleCenterX(geometry, col, c, template.choicesPerQuestion, width)
+                canvas.drawText(('A' + c).toString(), cx, geometry.gridTop - height * 0.012f, columnLabelPaint)
             }
         }
 
         for (q in 0 until template.numQuestions) {
-            val col = q / rowsPerCol
-            val rowInCol = q % rowsPerCol
-            val rowY = gridTop + rowInCol * rowHeight + rowHeight / 2f
-            val colLeft = 50f + col * colWidth
+            val col = q / geometry.rowsPerCol
+            val rowInCol = q % geometry.rowsPerCol
+            val rowY = SheetGeometry.rowCenterY(geometry, rowInCol)
+            val colLeft = geometry.marginX + col * geometry.colWidth
 
-            canvas.drawText("${q + 1}.", colLeft, rowY + 6f, labelPaint)
+            canvas.drawText("${q + 1}.", colLeft, rowY + labelPaint.textSize * 0.35f, labelPaint)
 
-            val bubblesStartX = colLeft + 48f
-            val bubbleSpacing = (colWidth - 60f) / template.choicesPerQuestion
             for (c in 0 until template.choicesPerQuestion) {
-                val cx = bubblesStartX + c * bubbleSpacing + bubbleSpacing / 2f
-                canvas.drawCircle(cx, rowY, bubbleRadius, bubblePaint)
+                val cx = SheetGeometry.bubbleCenterX(geometry, col, c, template.choicesPerQuestion, width)
+                canvas.drawCircle(cx, rowY, geometry.bubbleRadius, bubblePaint)
             }
         }
     }

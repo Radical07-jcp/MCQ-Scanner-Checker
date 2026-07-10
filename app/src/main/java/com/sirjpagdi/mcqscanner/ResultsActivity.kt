@@ -7,16 +7,11 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import java.io.File
-import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
- * Scan-and-go by design: shows the score immediately, offers a CSV export
- * of that one sheet, and a shortcut straight back into scanning the next
- * sheet. Nothing is kept in the app between sheets.
+ * Scan-and-go by design: shows the score immediately and offers a shortcut
+ * straight back into scanning the next sheet. Nothing is kept in the app
+ * between sheets.
  */
 class ResultsActivity : AppCompatActivity() {
 
@@ -68,37 +63,10 @@ class ResultsActivity : AppCompatActivity() {
         tvScore.text = "Score: $score / $totalScored"
         tvDetail.text = sb.toString()
 
-        findViewById<Button>(R.id.btnExportCsv).setOnClickListener {
-            val name = findViewById<EditText>(R.id.etStudentName).text.toString().ifBlank { "Unnamed" }
-            exportSingleCsv(name)
-        }
-
         findViewById<Button>(R.id.btnScanAnother).setOnClickListener {
             startActivity(Intent(this, ScanActivity::class.java).putExtra("mode", "GRADE"))
             finish()
         }
     }
 
-    private fun exportSingleCsv(name: String) {
-        try {
-            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val dir = getExternalFilesDir(null) ?: filesDir
-            val file = File(dir, "MCQ_${name.replace(" ", "_")}_$timestamp.csv")
-            FileOutputStream(file).use { out ->
-                out.write("Question,Detected,Key,Correct\n".toByteArray())
-                for (i in key.indices) {
-                    val correct = key.getOrElse(i) { "" }
-                    val given = detected.getOrElse(i) { "" }
-                    val isCorrect = if (correct.isNotEmpty() && given == correct) "YES" else "NO"
-                    out.write("${i + 1},$given,$correct,$isCorrect\n".toByteArray())
-                }
-                out.write("\nStudent,Score,Total\n".toByteArray())
-                val totalScored = key.count { it.isNotEmpty() }
-                out.write("$name,$score,$totalScored\n".toByteArray())
-            }
-            Toast.makeText(this, "Exported to ${file.absolutePath}", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
 }

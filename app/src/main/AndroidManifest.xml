@@ -25,10 +25,10 @@
 
         <activity android:name=".AnswerKeyActivity" android:exported="false" />
         <activity android:name=".ScanActivity" android:exported="false" />
-        <activity android:name=".CornerSelectActivity" android:exported="false" />
         <activity android:name=".ResultsActivity" android:exported="false" />
         <activity android:name=".ChangelogActivity" android:exported="false" />
         <activity android:name=".LoadTestActivity" android:exported="false" />
+        <activity android:name=".PreviewTemplateActivity" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

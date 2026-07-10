@@ -3,6 +3,7 @@ package com.sirjpagdi.mcqscanner
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.PointF
 import android.os.Bundle
 import android.os.VibrationEffect
@@ -20,20 +21,27 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
-import org.opencv.core.Mat
-import org.opencv.core.MatOfPoint
-import org.opencv.core.MatOfPoint2f
-import org.opencv.core.Point
-import org.opencv.core.Size
-import org.opencv.imgproc.Imgproc
 
+/**
+ * Scanning screen. Instead of a full-frame contour search (fragile, and
+ * heavy on OpenCV per frame), this samples plain luminance near 4 fixed
+ * corner brackets — matching where the sheet's printed corner squares
+ * (see TemplateRenderer) should sit once the teacher lines things up.
+ * There's no manual corner-dragging step after capture anymore: the photo
+ * is warped straight away using those same 4 bracket positions.
+ */
 class ScanActivity : AppCompatActivity() {
 
     private lateinit var previewView: PreviewView
     private lateinit var overlayView: ScanOverlayView
     private var imageCapture: ImageCapture? = null
     private var scanMode: String = "GRADE"
-    private var lastDetectedCorners: Array<PointF>? = null
+
+    // Must match ScanOverlayView's insetFraction / bracketSizeFraction.
+    private val insetFraction = 0.10f
+    private val bracketSizeFraction = 0.09f
+    private val darknessThreshold = 110 // 0-255 luminance; below this counts as "dark ink present"
+    private val darkPixelFractionNeeded = 0.12
 
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -79,18 +87,9 @@ class ScanActivity : AppCompatActivity() {
                 .build()
 
             analysis.setAnalyzer(ContextCompat.getMainExecutor(this)) { image ->
-                val corners = detectSheetCorners(image)
-                val aligned = corners != null
-                if (aligned) {
-                    lastDetectedCorners = corners
-                }
-                runOnUiThread {
-                    overlayView.updateOverlay(
-                        corners?.map { toViewPoint(it, image.width, image.height) }?.toTypedArray(),
-                        aligned
-                    )
-                }
+                val aligned = checkCornerAlignment(image)
                 image.close()
+                runOnUiThread { overlayView.updateOverlay(aligned) }
             }
 
             val selector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -99,67 +98,63 @@ class ScanActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun detectSheetCorners(image: ImageProxy): Array<PointF>? {
-        val gray = ImageUtils.imageProxyToGrayMat(image)
-        val blurred = Mat()
-        Imgproc.GaussianBlur(gray, blurred, Size(5.0, 5.0), 0.0)
-        val edges = Mat()
-        Imgproc.Canny(blurred, edges, 75.0, 200.0)
+    /** Samples the Y (luminance) plane directly — no OpenCV needed for this
+     *  lightweight per-frame check, which keeps live scanning smooth and
+     *  avoids repeated native calls that were triggering crashes before. */
+    private fun checkCornerAlignment(image: ImageProxy): BooleanArray {
+        val yPlane = image.planes[0]
+        val buffer = yPlane.buffer
+        val rowStride = yPlane.rowStride
+        val w = image.width
+        val h = image.height
 
-        val contours = mutableListOf<MatOfPoint>()
-        Imgproc.findContours(edges, contours, Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE)
+        val inset = w * insetFraction
+        val bracket = minOf(w, h) * bracketSizeFraction
 
-        gray.release()
-        blurred.release()
-        edges.release()
-
-        var bestCorners: Array<PointF>? = null
-        var bestArea = 0.0
-
-        for (contour in contours) {
-            val contourArea = Imgproc.contourArea(contour)
-            if (contourArea < 10000) {
-                contour.release()
-                continue
-            }
-
-            val approx = MatOfPoint2f()
-            Imgproc.approxPolyDP(
-                MatOfPoint2f(*contour.toArray()),
-                approx,
-                Imgproc.arcLength(MatOfPoint2f(*contour.toArray()), true) * 0.02,
-                true
-            )
-
-            if (approx.total() == 4L && contourArea > bestArea) {
-                bestArea = contourArea
-                bestCorners = orderPoints(approx.toList())
-            }
-            contour.release()
-            approx.release()
-        }
-
-        contours.forEach { it.release() }
-        return bestCorners
-    }
-
-    private fun orderPoints(points: List<Point>): Array<PointF> {
-        val tl = points.minByOrNull { it.x + it.y } ?: points[0]
-        val br = points.maxByOrNull { it.x + it.y } ?: points[0]
-        val tr = points.minByOrNull { it.x - it.y } ?: points[0]
-        val bl = points.maxByOrNull { it.x - it.y } ?: points[0]
-        return arrayOf(
-            PointF(tl.x.toFloat(), tl.y.toFloat()),
-            PointF(tr.x.toFloat(), tr.y.toFloat()),
-            PointF(br.x.toFloat(), br.y.toFloat()),
-            PointF(bl.x.toFloat(), bl.y.toFloat())
+        // Build the 4 corner sample rects directly in image pixel space, mirroring ScanOverlayView.
+        val insetY = h * insetFraction
+        val corners = arrayOf(
+            intArrayOf(inset.toInt(), insetY.toInt(), (inset + bracket).toInt(), (insetY + bracket).toInt()),
+            intArrayOf((w - inset - bracket).toInt(), insetY.toInt(), (w - inset).toInt(), (insetY + bracket).toInt()),
+            intArrayOf(inset.toInt(), (h - insetY - bracket).toInt(), (inset + bracket).toInt(), (h - insetY).toInt()),
+            intArrayOf((w - inset - bracket).toInt(), (h - insetY - bracket).toInt(), (w - inset).toInt(), (h - insetY).toInt())
         )
+
+        val result = BooleanArray(4)
+        for (i in corners.indices) {
+            val (x0, y0, x1, y1) = corners[i].let { listOf(it[0], it[1], it[2], it[3]) }
+            result[i] = regionHasDarkMarker(buffer, rowStride, w, h, x0, y0, x1, y1)
+        }
+        return result
     }
 
-    private fun toViewPoint(point: PointF, imageWidth: Int, imageHeight: Int): PointF {
-        val scaleX = previewView.width.toFloat() / imageWidth.toFloat()
-        val scaleY = previewView.height.toFloat() / imageHeight.toFloat()
-        return PointF(point.x * scaleX, point.y * scaleY)
+    private fun regionHasDarkMarker(
+        buffer: java.nio.ByteBuffer, rowStride: Int, imgW: Int, imgH: Int,
+        x0: Int, y0: Int, x1: Int, y1: Int
+    ): Boolean {
+        val cx0 = x0.coerceIn(0, imgW - 1)
+        val cy0 = y0.coerceIn(0, imgH - 1)
+        val cx1 = x1.coerceIn(cx0 + 1, imgW)
+        val cy1 = y1.coerceIn(cy0 + 1, imgH)
+
+        var dark = 0
+        var total = 0
+        val step = 2 // sample every other pixel — plenty for a darkness ratio, much cheaper
+        val row = ByteArray(cx1 - cx0)
+        for (y in cy0 until cy1 step step) {
+            val rowStart = y * rowStride + cx0
+            if (rowStart + row.size > buffer.capacity()) break
+            buffer.position(rowStart)
+            buffer.get(row, 0, row.size)
+            for (x in row.indices step step) {
+                total++
+                val lum = row[x].toInt() and 0xFF
+                if (lum < darknessThreshold) dark++
+            }
+        }
+        buffer.rewind()
+        if (total == 0) return false
+        return dark.toDouble() / total >= darkPixelFractionNeeded
     }
 
     private fun captureSheet() {
@@ -170,15 +165,10 @@ class ScanActivity : AppCompatActivity() {
                 val bitmap = ImageUtils.imageProxyToBitmap(image)
                 image.close()
 
-                val corners = lastDetectedCorners ?: defaultBitmapCorners(bitmap)
+                val corners = bracketCorners(bitmap)
                 val warped = OMRProcessor.warpPerspective(bitmap, corners)
                 val template = Prefs.loadTemplate(this@ScanActivity)!!
-                val detected = OMRProcessor.grade(
-                    warped,
-                    template.numQuestions,
-                    template.columns,
-                    template.choicesPerQuestion
-                )
+                val detected = OMRProcessor.grade(warped, template)
 
                 if (scanMode == "KEY") {
                     Prefs.saveAnswerKey(this@ScanActivity, detected)
@@ -199,12 +189,21 @@ class ScanActivity : AppCompatActivity() {
         })
     }
 
-    private fun defaultBitmapCorners(bitmap: android.graphics.Bitmap): Array<PointF> {
+    /** The 4 points where the sheet's corner markers should be, in the
+     *  captured bitmap's own pixel space — same fractional layout as the
+     *  on-screen guide, so what the teacher aligned to is what gets warped. */
+    private fun bracketCorners(bitmap: Bitmap): Array<PointF> {
+        val w = bitmap.width.toFloat()
+        val h = bitmap.height.toFloat()
+        val insetX = w * insetFraction
+        val insetY = h * insetFraction
+        val bracket = minOf(w, h) * bracketSizeFraction
+        val half = bracket / 2f
         return arrayOf(
-            PointF(0f, 0f),
-            PointF(bitmap.width.toFloat(), 0f),
-            PointF(bitmap.width.toFloat(), bitmap.height.toFloat()),
-            PointF(0f, bitmap.height.toFloat())
+            PointF(insetX + half, insetY + half),
+            PointF(w - insetX - half, insetY + half),
+            PointF(w - insetX - half, h - insetY - half),
+            PointF(insetX + half, h - insetY - half)
         )
     }
 
